@@ -5,21 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>APEX Box Breathing</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body {
-            font-family: Arial, sans-serif;
-            background: transparent;
-        }
+        body { font-family: Arial, sans-serif; background: transparent; }
         
-        .apex-breath-wrapper {
-            text-align: center;
-            padding: 40px 20px;
-        }
+        .apex-breath-wrapper { text-align: center; padding: 40px 20px; }
 
         .apex-breath-btn {
             background: linear-gradient(135deg, #ECBD66 0%, #d4a94f 100%);
@@ -57,14 +47,9 @@
             flex-direction: column;
         }
 
-        .apex-breath-config {
-            text-align: center;
-        }
-
-        .apex-breath-config.hide {
-            display: none;
-        }
-
+        .apex-breath-config { text-align: center; }
+        .apex-breath-config.hide { display: none; }
+        
         .apex-breath-config-title {
             color: #ECBD66;
             font-size: 32px;
@@ -91,17 +76,9 @@
             border-style: solid;
         }
 
-        .apex-breath-triangle.up {
-            border-bottom: 40px solid #ECBD66;
-        }
-
-        .apex-breath-triangle.down {
-            border-top: 40px solid #ECBD66;
-        }
-
-        .apex-breath-triangle:hover {
-            opacity: 0.8;
-        }
+        .apex-breath-triangle.up { border-bottom: 40px solid #ECBD66; }
+        .apex-breath-triangle.down { border-top: 40px solid #ECBD66; }
+        .apex-breath-triangle:hover { opacity: 0.8; }
 
         .apex-breath-value {
             color: #E8E6E3;
@@ -125,14 +102,9 @@
             cursor: pointer;
         }
 
-        .apex-breath-screen {
-            display: none;
-        }
-
-        .apex-breath-screen.show {
-            display: block;
-        }
-
+        .apex-breath-screen { display: none; }
+        .apex-breath-screen.show { display: block; }
+        
         .apex-breath-container {
             text-align: center;
             margin-bottom: 40px;
@@ -256,18 +228,18 @@
     </div>
 
     <script>
-        var dur = 4;
-        var phase = 0;
-        var paused = false;
-        var timer = null;
-        var startTime = 0;
-        var elapsedTime = 0;
-        
+        var breathDuration = 4;
+        var currentPhase = 0;
+        var isPaused = false;
+        var breathingInterval;
+        var phaseStartTime = 0;
+        var pausedTime = 0;
+
         var phases = [
-            {top:'-12px', left:'-12px', fill:100, txt:'Inhale'},
-            {top:'-12px', left:'calc(100% - 12px)', fill:100, txt:'Hold'},
-            {top:'calc(100% - 12px)', left:'calc(100% - 12px)', fill:0, txt:'Exhale'},
-            {top:'calc(100% - 12px)', left:'-12px', fill:0, txt:'Hold'}
+            {name:'Inhale', targetTop:-12, targetLeft:-12, fill:100},
+            {name:'Hold', targetTop:-12, targetLeft:'calc(100% - 12px)', fill:100},
+            {name:'Exhale', targetTop:'calc(100% - 12px)', targetLeft:'calc(100% - 12px)', fill:0},
+            {name:'Hold', targetTop:'calc(100% - 12px)', targetLeft:-12, fill:0}
         ];
         
         document.getElementById('openBtn').onclick = function() {
@@ -277,22 +249,22 @@
         };
         
         document.getElementById('upBtn').onclick = function() {
-            dur = Math.min(8, dur + 1);
-            document.getElementById('durVal').textContent = dur;
+            breathDuration = Math.min(8, breathDuration + 1);
+            document.getElementById('durVal').textContent = breathDuration;
         };
         
         document.getElementById('downBtn').onclick = function() {
-            dur = Math.max(3, dur - 1);
-            document.getElementById('durVal').textContent = dur;
+            breathDuration = Math.max(3, breathDuration - 1);
+            document.getElementById('durVal').textContent = breathDuration;
         };
         
         document.getElementById('startBtn').onclick = function() {
             document.getElementById('config').className = 'apex-breath-config hide';
             document.getElementById('screen').className = 'apex-breath-screen show';
             
-            phase = 0;
-            paused = false;
-            elapsedTime = 0;
+            currentPhase = 0;
+            isPaused = false;
+            pausedTime = 0;
             
             var ball = document.getElementById('ball');
             var fill = document.getElementById('fill');
@@ -304,99 +276,92 @@
             
             document.getElementById('pauseIcon').innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
             
-            setTimeout(run, 500);
+            setTimeout(runPhase, 500);
         };
         
         document.getElementById('stopBtn').onclick = function() {
-            if (timer) clearTimeout(timer);
+            if (breathingInterval) clearTimeout(breathingInterval);
             document.getElementById('overlay').className = 'apex-breath-overlay';
-            paused = false;
+            isPaused = false;
         };
         
         document.getElementById('pauseBtn').onclick = function() {
             var ball = document.getElementById('ball');
             var fill = document.getElementById('fill');
-            var icon = document.getElementById('pauseIcon');
+            var pauseIcon = document.getElementById('pauseIcon');
             
-            if (!paused) {
-                // PAUSE - Freeze at current position
-                paused = true;
-                if (timer) clearTimeout(timer);
+            if (!isPaused) {
+                // PAUSE
+                isPaused = true;
+                pauseIcon.innerHTML = '▶';
+                clearTimeout(breathingInterval);
                 
-                // Get ACTUAL current positions
-                var ballStyles = window.getComputedStyle(ball);
-                var fillStyles = window.getComputedStyle(fill);
+                // Get current computed positions FIRST
+                var ballStyle = window.getComputedStyle(ball);
+                var fillStyle = window.getComputedStyle(fill);
                 
                 // Stop transitions FIRST
                 ball.style.transition = 'none';
                 fill.style.transition = 'none';
                 
-                // Set to current computed positions
-                ball.style.top = ballStyles.top;
-                ball.style.left = ballStyles.left;
-                fill.style.height = fillStyles.height;
+                // THEN set positions
+                ball.style.top = ballStyle.top;
+                ball.style.left = ballStyle.left;
+                fill.style.height = fillStyle.height;
                 
                 // Calculate elapsed time
-                elapsedTime = Date.now() - startTime;
-                
-                // Change icon
-                icon.innerHTML = '▶';
+                pausedTime = Date.now() - phaseStartTime;
                 
             } else {
-                // RESUME - Continue from current position
-                paused = false;
-                icon.innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
+                // RESUME
+                isPaused = false;
+                pauseIcon.innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
                 
-                // Calculate remaining time
-                var remainingTime = (dur * 1000) - elapsedTime;
+                var remainingTime = (breathDuration * 1000) - pausedTime;
                 
-                // Resume transitions with remaining time
-                ball.style.transition = 'all ' + (remainingTime / 1000) + 's linear';
-                fill.style.transition = 'height ' + (remainingTime / 1000) + 's linear';
+                ball.style.transition = 'all ' + (remainingTime/1000) + 's linear';
+                fill.style.transition = 'height ' + (remainingTime/1000) + 's linear';
                 
-                // Move to target position
-                var p = phases[phase];
-                ball.style.top = p.top;
-                ball.style.left = p.left;
-                fill.style.height = p.fill + '%';
+                var phase = phases[currentPhase];
+                ball.style.top = typeof phase.targetTop === 'number' ? phase.targetTop + 'px' : phase.targetTop;
+                ball.style.left = typeof phase.targetLeft === 'number' ? phase.targetLeft + 'px' : phase.targetLeft;
+                fill.style.height = phase.fill + '%';
                 
-                // Update start time
-                startTime = Date.now() - elapsedTime;
+                phaseStartTime = Date.now() - pausedTime;
                 
-                // Set timeout for remaining time
-                timer = setTimeout(function() {
-                    phase = (phase + 1) % 4;
-                    elapsedTime = 0;
-                    run();
+                breathingInterval = setTimeout(function() {
+                    currentPhase = (currentPhase + 1) % 4;
+                    pausedTime = 0;
+                    runPhase();
                 }, remainingTime);
             }
         };
         
-        function run() {
-            if (paused) return;
+        function runPhase() {
+            if (isPaused) return;
             
-            var p = phases[phase];
+            var phase = phases[currentPhase];
             var ball = document.getElementById('ball');
             var fill = document.getElementById('fill');
-            var txt = document.getElementById('text');
+            var text = document.getElementById('text');
             
-            txt.textContent = p.txt;
+            text.textContent = phase.name;
             
-            ball.style.transition = 'all ' + dur + 's linear';
-            fill.style.transition = 'height ' + dur + 's linear';
-            ball.style.top = p.top;
-            ball.style.left = p.left;
-            fill.style.height = p.fill + '%';
+            ball.style.transition = 'all ' + breathDuration + 's linear';
+            fill.style.transition = 'height ' + breathDuration + 's linear';
+            ball.style.top = typeof phase.targetTop === 'number' ? phase.targetTop + 'px' : phase.targetTop;
+            ball.style.left = typeof phase.targetLeft === 'number' ? phase.targetLeft + 'px' : phase.targetLeft;
+            fill.style.height = phase.fill + '%';
             
-            startTime = Date.now();
-            elapsedTime = 0;
+            phaseStartTime = Date.now();
+            pausedTime = 0;
             
-            timer = setTimeout(function() {
-                if (!paused) {
-                    phase = (phase + 1) % 4;
-                    run();
+            breathingInterval = setTimeout(function() {
+                if (!isPaused) {
+                    currentPhase = (currentPhase + 1) % 4;
+                    runPhase();
                 }
-            }, dur * 1000);
+            }, breathDuration * 1000);
         }
     </script>
 </body>
