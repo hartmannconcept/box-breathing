@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEX Box Breathing - FIXED</title>
+    <title>APEX Box Breathing</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body { font-family: Arial, sans-serif; background: #0F0F0F; }
+        body { font-family: Arial, sans-serif; background: transparent; }
         
         .apex-breath-wrapper { text-align: center; padding: 40px 20px; }
 
@@ -118,7 +118,7 @@
             border: 4px solid #ECBD66;
             border-radius: 12px;
             background: rgba(15, 15, 15, 1);
-            overflow: hidden;
+            overflow: visible;
         }
 
         .apex-breath-fill {
@@ -127,8 +127,10 @@
             left: 0;
             width: 100%;
             height: 0%;
+            max-height: 100%;
             background: linear-gradient(to top, rgba(236, 189, 102, 0.3), rgba(236, 189, 102, 0.15));
             z-index: 1;
+            border-radius: 0 0 8px 8px;
         }
 
         .apex-breath-text {
@@ -212,8 +214,8 @@
             <div class="apex-breath-container">
                 <div class="apex-breath-box">
                     <div class="apex-breath-fill" id="fill"></div>
-                    <div class="apex-breath-text" id="text">Bereit</div>
                     <div class="apex-breath-ball" id="ball"></div>
+                    <div class="apex-breath-text" id="text">Bereit</div>
                 </div>
             </div>
             <div class="apex-breath-ctrls">
@@ -229,23 +231,22 @@
     </div>
 
     <script>
-        var breathDuration = 4000; // milliseconds
+        var breathDuration = 4000;
         var currentPhase = 0;
         var isPaused = false;
         var animationId = null;
         var phaseStartTime = 0;
         var pauseTime = 0;
         
-        // Animation state
-        var currentBallTop = 288; // calc(100% - 12px) = 288px
-        var currentBallLeft = -12;
+        var currentBallTop = 284;
+        var currentBallLeft = -16;
         var currentFillHeight = 0;
 
         var phases = [
-            {name:'Inhale', ballTop:-12, ballLeft:-12, fillHeight:100},
-            {name:'Hold', ballTop:-12, ballLeft:288, fillHeight:100},
-            {name:'Exhale', ballTop:288, ballLeft:288, fillHeight:0},
-            {name:'Hold', ballTop:288, ballLeft:-12, fillHeight:0}
+            {name:'Inhale', ballTop:-16, ballLeft:-16, fillHeight:100},
+            {name:'Hold', ballTop:-16, ballLeft:284, fillHeight:100},
+            {name:'Exhale', ballTop:284, ballLeft:284, fillHeight:0},
+            {name:'Hold', ballTop:284, ballLeft:-16, fillHeight:0}
         ];
         
         var ball = null;
@@ -283,9 +284,8 @@
             currentPhase = 0;
             isPaused = false;
             
-            // Start position
-            currentBallTop = 288;
-            currentBallLeft = -12;
+            currentBallTop = 284;
+            currentBallLeft = -16;
             currentFillHeight = 0;
             
             ball.style.top = currentBallTop + 'px';
@@ -307,16 +307,13 @@
             var pauseIcon = document.getElementById('pauseIcon');
             
             if (!isPaused) {
-                // PAUSE
                 isPaused = true;
                 pauseIcon.innerHTML = '▶';
                 pauseTime = Date.now();
             } else {
-                // RESUME
                 isPaused = false;
                 pauseIcon.innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
                 
-                // Adjust start time
                 var pauseDuration = Date.now() - pauseTime;
                 phaseStartTime += pauseDuration;
             }
@@ -339,10 +336,9 @@
             var phase = phases[currentPhase];
             text.textContent = phase.name;
             
-            // Linear interpolation
-            var startBallTop = currentBallTop;
-            var startBallLeft = currentBallLeft;
-            var startFillHeight = currentFillHeight;
+            var startBallTop = currentPhase === 0 ? 284 : phases[(currentPhase + 3) % 4].ballTop;
+            var startBallLeft = currentPhase === 0 ? -16 : phases[(currentPhase + 3) % 4].ballLeft;
+            var startFillHeight = currentPhase === 0 ? 0 : phases[(currentPhase + 3) % 4].fillHeight;
             
             currentBallTop = startBallTop + (phase.ballTop - startBallTop) * progress;
             currentBallLeft = startBallLeft + (phase.ballLeft - startBallLeft) * progress;
@@ -353,7 +349,6 @@
             fill.style.height = currentFillHeight + '%';
             
             if (progress >= 1) {
-                // Phase complete
                 currentBallTop = phase.ballTop;
                 currentBallLeft = phase.ballLeft;
                 currentFillHeight = phase.fillHeight;
