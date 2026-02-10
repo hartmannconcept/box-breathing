@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APEX Box Breathing</title>
+    <title>APEX Box Breathing - FIXED</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        body { font-family: Arial, sans-serif; background: transparent; }
+        body { font-family: Arial, sans-serif; background: #0F0F0F; }
         
         .apex-breath-wrapper { text-align: center; padding: 40px 20px; }
 
@@ -117,6 +117,8 @@
             margin: 0 auto;
             border: 4px solid #ECBD66;
             border-radius: 12px;
+            background: rgba(15, 15, 15, 1);
+            overflow: hidden;
         }
 
         .apex-breath-fill {
@@ -126,7 +128,6 @@
             width: 100%;
             height: 0%;
             background: linear-gradient(to top, rgba(236, 189, 102, 0.3), rgba(236, 189, 102, 0.15));
-            border-radius: 8px;
             z-index: 1;
         }
 
@@ -228,19 +229,28 @@
     </div>
 
     <script>
-        var breathDuration = 4;
+        var breathDuration = 4000; // milliseconds
         var currentPhase = 0;
         var isPaused = false;
-        var breathingInterval;
+        var animationId = null;
         var phaseStartTime = 0;
-        var pausedTime = 0;
+        var pauseTime = 0;
+        
+        // Animation state
+        var currentBallTop = 288; // calc(100% - 12px) = 288px
+        var currentBallLeft = -12;
+        var currentFillHeight = 0;
 
         var phases = [
-            {name:'Inhale', targetTop:-12, targetLeft:-12, fill:100},
-            {name:'Hold', targetTop:-12, targetLeft:'calc(100% - 12px)', fill:100},
-            {name:'Exhale', targetTop:'calc(100% - 12px)', targetLeft:'calc(100% - 12px)', fill:0},
-            {name:'Hold', targetTop:'calc(100% - 12px)', targetLeft:-12, fill:0}
+            {name:'Inhale', ballTop:-12, ballLeft:-12, fillHeight:100},
+            {name:'Hold', ballTop:-12, ballLeft:288, fillHeight:100},
+            {name:'Exhale', ballTop:288, ballLeft:288, fillHeight:0},
+            {name:'Hold', ballTop:288, ballLeft:-12, fillHeight:0}
         ];
+        
+        var ball = null;
+        var fill = null;
+        var text = null;
         
         document.getElementById('openBtn').onclick = function() {
             document.getElementById('overlay').className = 'apex-breath-overlay show';
@@ -249,119 +259,110 @@
         };
         
         document.getElementById('upBtn').onclick = function() {
-            breathDuration = Math.min(8, breathDuration + 1);
-            document.getElementById('durVal').textContent = breathDuration;
+            var dur = parseInt(document.getElementById('durVal').textContent);
+            dur = Math.min(8, dur + 1);
+            document.getElementById('durVal').textContent = dur;
+            breathDuration = dur * 1000;
         };
         
         document.getElementById('downBtn').onclick = function() {
-            breathDuration = Math.max(3, breathDuration - 1);
-            document.getElementById('durVal').textContent = breathDuration;
+            var dur = parseInt(document.getElementById('durVal').textContent);
+            dur = Math.max(3, dur - 1);
+            document.getElementById('durVal').textContent = dur;
+            breathDuration = dur * 1000;
         };
         
         document.getElementById('startBtn').onclick = function() {
             document.getElementById('config').className = 'apex-breath-config hide';
             document.getElementById('screen').className = 'apex-breath-screen show';
             
+            ball = document.getElementById('ball');
+            fill = document.getElementById('fill');
+            text = document.getElementById('text');
+            
             currentPhase = 0;
             isPaused = false;
-            pausedTime = 0;
             
-            var ball = document.getElementById('ball');
-            var fill = document.getElementById('fill');
-            ball.style.top = 'calc(100% - 12px)';
-            ball.style.left = '-12px';
-            ball.style.transition = 'none';
-            fill.style.height = '0%';
-            fill.style.transition = 'none';
+            // Start position
+            currentBallTop = 288;
+            currentBallLeft = -12;
+            currentFillHeight = 0;
+            
+            ball.style.top = currentBallTop + 'px';
+            ball.style.left = currentBallLeft + 'px';
+            fill.style.height = currentFillHeight + '%';
             
             document.getElementById('pauseIcon').innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
             
-            setTimeout(runPhase, 500);
+            setTimeout(startPhase, 500);
         };
         
         document.getElementById('stopBtn').onclick = function() {
-            if (breathingInterval) clearTimeout(breathingInterval);
+            if (animationId) cancelAnimationFrame(animationId);
             document.getElementById('overlay').className = 'apex-breath-overlay';
             isPaused = false;
         };
         
         document.getElementById('pauseBtn').onclick = function() {
-            var ball = document.getElementById('ball');
-            var fill = document.getElementById('fill');
             var pauseIcon = document.getElementById('pauseIcon');
             
             if (!isPaused) {
                 // PAUSE
                 isPaused = true;
                 pauseIcon.innerHTML = '▶';
-                clearTimeout(breathingInterval);
-                
-                // Get current computed positions FIRST
-                var ballStyle = window.getComputedStyle(ball);
-                var fillStyle = window.getComputedStyle(fill);
-                
-                // Stop transitions FIRST
-                ball.style.transition = 'none';
-                fill.style.transition = 'none';
-                
-                // THEN set positions
-                ball.style.top = ballStyle.top;
-                ball.style.left = ballStyle.left;
-                fill.style.height = fillStyle.height;
-                
-                // Calculate elapsed time
-                pausedTime = Date.now() - phaseStartTime;
-                
+                pauseTime = Date.now();
             } else {
                 // RESUME
                 isPaused = false;
                 pauseIcon.innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
                 
-                var remainingTime = (breathDuration * 1000) - pausedTime;
-                
-                ball.style.transition = 'all ' + (remainingTime/1000) + 's linear';
-                fill.style.transition = 'height ' + (remainingTime/1000) + 's linear';
-                
-                var phase = phases[currentPhase];
-                ball.style.top = typeof phase.targetTop === 'number' ? phase.targetTop + 'px' : phase.targetTop;
-                ball.style.left = typeof phase.targetLeft === 'number' ? phase.targetLeft + 'px' : phase.targetLeft;
-                fill.style.height = phase.fill + '%';
-                
-                phaseStartTime = Date.now() - pausedTime;
-                
-                breathingInterval = setTimeout(function() {
-                    currentPhase = (currentPhase + 1) % 4;
-                    pausedTime = 0;
-                    runPhase();
-                }, remainingTime);
+                // Adjust start time
+                var pauseDuration = Date.now() - pauseTime;
+                phaseStartTime += pauseDuration;
             }
         };
         
-        function runPhase() {
-            if (isPaused) return;
+        function startPhase() {
+            phaseStartTime = Date.now();
+            animate();
+        }
+        
+        function animate() {
+            if (isPaused) {
+                animationId = requestAnimationFrame(animate);
+                return;
+            }
+            
+            var elapsed = Date.now() - phaseStartTime;
+            var progress = Math.min(elapsed / breathDuration, 1);
             
             var phase = phases[currentPhase];
-            var ball = document.getElementById('ball');
-            var fill = document.getElementById('fill');
-            var text = document.getElementById('text');
-            
             text.textContent = phase.name;
             
-            ball.style.transition = 'all ' + breathDuration + 's linear';
-            fill.style.transition = 'height ' + breathDuration + 's linear';
-            ball.style.top = typeof phase.targetTop === 'number' ? phase.targetTop + 'px' : phase.targetTop;
-            ball.style.left = typeof phase.targetLeft === 'number' ? phase.targetLeft + 'px' : phase.targetLeft;
-            fill.style.height = phase.fill + '%';
+            // Linear interpolation
+            var startBallTop = currentBallTop;
+            var startBallLeft = currentBallLeft;
+            var startFillHeight = currentFillHeight;
             
-            phaseStartTime = Date.now();
-            pausedTime = 0;
+            currentBallTop = startBallTop + (phase.ballTop - startBallTop) * progress;
+            currentBallLeft = startBallLeft + (phase.ballLeft - startBallLeft) * progress;
+            currentFillHeight = startFillHeight + (phase.fillHeight - startFillHeight) * progress;
             
-            breathingInterval = setTimeout(function() {
-                if (!isPaused) {
-                    currentPhase = (currentPhase + 1) % 4;
-                    runPhase();
-                }
-            }, breathDuration * 1000);
+            ball.style.top = currentBallTop + 'px';
+            ball.style.left = currentBallLeft + 'px';
+            fill.style.height = currentFillHeight + '%';
+            
+            if (progress >= 1) {
+                // Phase complete
+                currentBallTop = phase.ballTop;
+                currentBallLeft = phase.ballLeft;
+                currentFillHeight = phase.fillHeight;
+                
+                currentPhase = (currentPhase + 1) % 4;
+                phaseStartTime = Date.now();
+            }
+            
+            animationId = requestAnimationFrame(animate);
         }
     </script>
 </body>
