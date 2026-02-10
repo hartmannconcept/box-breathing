@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APEX Box Breathing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: transparent;
+        }
+        
+        .apex-breath-wrapper {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .apex-breath-btn {
+            background: linear-gradient(135deg, #ECBD66 0%, #d4a94f 100%);
+            color: #0F0F0F;
+            border: none;
+            padding: 18px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(236, 189, 102, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .apex-breath-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(236, 189, 102, 0.4);
+        }
+
+        .apex-breath-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 15, 15, 0.95);
+            z-index: 99999;
+        }
+
+        .apex-breath-overlay.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        .apex-breath-config {
+            text-align: center;
+        }
+
+        .apex-breath-config.hide {
+            display: none;
+        }
+
+        .apex-breath-config-title {
+            color: #ECBD66;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 40px;
+        }
+
+        .apex-breath-config-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .apex-breath-triangle {
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            border-style: solid;
+        }
+
+        .apex-breath-triangle.up {
+            border-bottom: 40px solid #ECBD66;
+        }
+
+        .apex-breath-triangle.down {
+            border-top: 40px solid #ECBD66;
+        }
+
+        .apex-breath-triangle:hover {
+            opacity: 0.8;
+        }
+
+        .apex-breath-value {
+            color: #E8E6E3;
+            font-size: 64px;
+            font-weight: bold;
+        }
+
+        .apex-breath-label {
+            color: #999999;
+            font-size: 18px;
+        }
+
+        .apex-breath-start {
+            background: linear-gradient(135deg, #ECBD66 0%, #d4a94f 100%);
+            color: #0F0F0F;
+            border: none;
+            padding: 18px 50px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .apex-breath-screen {
+            display: none;
+        }
+
+        .apex-breath-screen.show {
+            display: block;
+        }
+
+        .apex-breath-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .apex-breath-box {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 0 auto;
+            border: 4px solid #ECBD66;
+            border-radius: 12px;
+        }
+
+        .apex-breath-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, rgba(236, 189, 102, 0.3), rgba(236, 189, 102, 0.15));
+            border-radius: 8px;
+        }
+
+        .apex-breath-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #E8E6E3;
+            font-size: 32px;
+            font-weight: bold;
+            z-index: 5;
+        }
+
+        .apex-breath-ball {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #ECBD66 0%, #fff 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(236, 189, 102, 0.8);
+            z-index: 100;
+        }
+
+        .apex-breath-ctrls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .apex-breath-ctrl-btn {
+            background: rgba(236, 189, 102, 0.2);
+            border: 2px solid #ECBD66;
+            color: #E8E6E3;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .apex-breath-ctrl-btn:hover {
+            background: rgba(236, 189, 102, 0.3);
+        }
+
+        .apex-breath-pause-icon {
+            display: flex;
+            gap: 6px;
+        }
+
+        .apex-breath-pause-bar {
+            width: 6px;
+            height: 24px;
+            background: #E8E6E3;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="apex-breath-wrapper">
+        <button class="apex-breath-btn" id="openBtn">Box Breathing starten</button>
+    </div>
+
+    <div class="apex-breath-overlay" id="overlay">
+        <div class="apex-breath-config" id="config">
+            <div class="apex-breath-config-title">Box Breathing</div>
+            <div class="apex-breath-config-controls">
+                <button class="apex-breath-triangle up" id="upBtn"></button>
+                <div>
+                    <div class="apex-breath-value" id="durVal">4</div>
+                    <div class="apex-breath-label">Sekunden pro Phase</div>
+                </div>
+                <button class="apex-breath-triangle down" id="downBtn"></button>
+            </div>
+            <button class="apex-breath-start" id="startBtn">Starten</button>
+        </div>
+        
+        <div class="apex-breath-screen" id="screen">
+            <div class="apex-breath-container">
+                <div class="apex-breath-box">
+                    <div class="apex-breath-fill" id="fill"></div>
+                    <div class="apex-breath-text" id="text">Bereit</div>
+                    <div class="apex-breath-ball" id="ball"></div>
+                </div>
+            </div>
+            <div class="apex-breath-ctrls">
+                <button class="apex-breath-ctrl-btn" id="pauseBtn">
+                    <div class="apex-breath-pause-icon" id="pauseIcon">
+                        <div class="apex-breath-pause-bar"></div>
+                        <div class="apex-breath-pause-bar"></div>
+                    </div>
+                </button>
+                <button class="apex-breath-ctrl-btn" id="stopBtn">✕</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var dur = 4, phase = 0, paused = false, timer = null, start = 0, elapsed = 0;
+        
+        var phases = [
+            {top:'-12px', left:'-12px', fill:100, txt:'Inhale'},
+            {top:'-12px', left:'calc(100% - 12px)', fill:100, txt:'Hold'},
+            {top:'calc(100% - 12px)', left:'calc(100% - 12px)', fill:0, txt:'Exhale'},
+            {top:'calc(100% - 12px)', left:'-12px', fill:0, txt:'Hold'}
+        ];
+        
+        document.getElementById('openBtn').onclick = function() {
+            document.getElementById('overlay').className = 'apex-breath-overlay show';
+            document.getElementById('config').className = 'apex-breath-config';
+            document.getElementById('screen').className = 'apex-breath-screen';
+        };
+        
+        document.getElementById('upBtn').onclick = function() {
+            dur = Math.min(8, dur + 1);
+            document.getElementById('durVal').textContent = dur;
+        };
+        
+        document.getElementById('downBtn').onclick = function() {
+            dur = Math.max(3, dur - 1);
+            document.getElementById('durVal').textContent = dur;
+        };
+        
+        document.getElementById('startBtn').onclick = function() {
+            document.getElementById('config').className = 'apex-breath-config hide';
+            document.getElementById('screen').className = 'apex-breath-screen show';
+            
+            phase = 0; paused = false; elapsed = 0;
+            
+            var ball = document.getElementById('ball');
+            var fill = document.getElementById('fill');
+            ball.style.top = 'calc(100% - 12px)';
+            ball.style.left = '-12px';
+            ball.style.transition = 'none';
+            fill.style.height = '0%';
+            fill.style.transition = 'none';
+            
+            document.getElementById('pauseIcon').innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
+            
+            setTimeout(run, 500);
+        };
+        
+        document.getElementById('stopBtn').onclick = function() {
+            if (timer) clearTimeout(timer);
+            document.getElementById('overlay').className = 'apex-breath-overlay';
+            paused = false;
+        };
+        
+        document.getElementById('pauseBtn').onclick = function() {
+            var ball = document.getElementById('ball');
+            var fill = document.getElementById('fill');
+            var icon = document.getElementById('pauseIcon');
+            
+            if (!paused) {
+                paused = true;
+                if (timer) clearTimeout(timer);
+                
+                var bs = window.getComputedStyle(ball);
+                var fs = window.getComputedStyle(fill);
+                
+                ball.style.transition = 'none';
+                fill.style.transition = 'none';
+                ball.style.top = bs.top;
+                ball.style.left = bs.left;
+                fill.style.height = fs.height;
+                
+                elapsed = Date.now() - start;
+                icon.innerHTML = '▶';
+            } else {
+                paused = false;
+                icon.innerHTML = '<div class="apex-breath-pause-bar"></div><div class="apex-breath-pause-bar"></div>';
+                
+                var remain = (dur * 1000) - elapsed;
+                
+                ball.style.transition = 'all ' + (remain/1000) + 's linear';
+                fill.style.transition = 'height ' + (remain/1000) + 's linear';
+                
+                var p = phases[phase];
+                ball.style.top = p.top;
+                ball.style.left = p.left;
+                fill.style.height = p.fill + '%';
+                
+                start = Date.now() - elapsed;
+                
+                timer = setTimeout(function() {
+                    phase = (phase + 1) % 4;
+                    elapsed = 0;
+                    run();
+                }, remain);
+            }
+        };
+        
+        function run() {
+            if (paused) return;
+            
+            var p = phases[phase];
+            var ball = document.getElementById('ball');
+            var fill = document.getElementById('fill');
+            var txt = document.getElementById('text');
+            
+            txt.textContent = p.txt;
+            
+            ball.style.transition = 'all ' + dur + 's linear';
+            fill.style.transition = 'height ' + dur + 's linear';
+            ball.style.top = p.top;
+            ball.style.left = p.left;
+            fill.style.height = p.fill + '%';
+            
+            start = Date.now();
+            elapsed = 0;
+            
+            timer = setTimeout(function() {
+                if (!paused) {
+                    phase = (phase + 1) % 4;
+                    run();
+                }
+            }, dur * 1000);
+        }
+    </script>
+</body>
+</html>
